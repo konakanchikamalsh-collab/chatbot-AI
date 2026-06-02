@@ -1,11 +1,9 @@
 import streamlit as st
 from PyPDF2 import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
-from langchain_community.chains import RetrievalQA
-
-load_dotenv() if __import__('os').path.exists('.env') else None
+from openai import OpenAI
 
 st.set_page_config(page_title="AI Document Chatbot", page_icon="📄", layout="wide")
 st.title("📄 AI Document Chatbot")
@@ -13,8 +11,8 @@ st.markdown("Upload a PDF and ask anything about it!")
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
-if "qa_chain" not in st.session_state:
-    st.session_state.qa_chain = None
+if "vectorstore" not in st.session_state:
+    st.session_state.vectorstore = None
 
 with st.sidebar:
     st.header("⚙️ Setup")
@@ -37,12 +35,8 @@ with st.sidebar:
                 chunks = splitter.split_text(raw_text)
 
                 embeddings = OpenAIEmbeddings(openai_api_key=api_key)
-                vectorstore = Chroma.from_texts(chunks, embeddings)
-
-                st.session_state.qa_chain = RetrievalQA.from_chain_type(
-                    llm=ChatOpenAI(openai_api_key=api_key, model_name="gpt-3.5-turbo", temperature=0),
-                    retriever=vectorstore.as_retriever(search_kwargs={"k": 3})
-                )
+                st.session_state.vectorstore = Chroma.from_texts(chunks, embeddings)
+                st.session_state.api_key = api_key
                 st.success(f"✅ Document processed! ({len(chunks)} chunks)")
 
     st.divider()
@@ -55,15 +49,26 @@ for message in st.session_state.chat_history:
         st.write(message["content"])
 
 if prompt := st.chat_input("Ask a question about your document..."):
-    if st.session_state.qa_chain is None:
+    if st.session_state.vectorstore is None:
         st.warning("⚠️ Please upload and process a PDF first!")
     else:
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.write(prompt)
+
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                response = st.session_state.qa_chain.invoke({"query": prompt})
-                answer = response["result"]
+                docs = st.session_state.vectorstore.similarity_search(prompt, k=3)
+                context = "\n\n".join([doc.page_content for doc in docs])
+
+                client = OpenAI(api_key=st.session_state.api_key)
+                response = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": f"Answer questions based on this document:\n\n{context}"},
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+                answer = response.choices[0].message.content
                 st.write(answer)
                 st.session_state.chat_history.append({"role": "assistant", "content": answer})
