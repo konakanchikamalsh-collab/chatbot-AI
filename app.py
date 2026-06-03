@@ -142,7 +142,7 @@ else:
                 docs = st.session_state.vectorstore.similarity_search(prompt, k=3)
                 context = "\n\n".join([doc.page_content for doc in docs])
 
-                model = genai.GenerativeModel("gemini-2.0-flash")
+               model = genai.GenerativeModel("gemini-1.5-flash-latest")
                 response = model.generate_content(
                     f"Answer this question based on the document below.\n\nDocument:\n{context}\n\nQuestion: {prompt}\n\nAnswer concisely and accurately."
                 )
