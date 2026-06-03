@@ -3,20 +3,18 @@ from PyPDF2 import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-import google.generativeai as genai
+from google import genai
 
 st.set_page_config(page_title="AI Document Chatbot", page_icon="📄", layout="wide")
 
 api_key = st.secrets["GOOGLE_API_KEY"]
-genai.configure(api_key=api_key)
+client = genai.Client(api_key=api_key)
 
 st.markdown("""
 <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    .stApp {
-        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-    }
+    .stApp { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); }
     [data-testid="stSidebar"] {
         background: rgba(255,255,255,0.05) !important;
         border-right: 1px solid rgba(255,255,255,0.1);
@@ -28,7 +26,7 @@ st.markdown("""
         border-radius: 10px !important;
         font-weight: 600 !important;
     }
-    h1, h2, h3, p, span, label { color: white !important; }
+    h1, h2, h3, p, span, label, div { color: white !important; }
     hr { border-color: rgba(255,255,255,0.1) !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -112,9 +110,9 @@ else:
             with st.spinner("Thinking..."):
                 docs = st.session_state.vectorstore.similarity_search(prompt, k=3)
                 context = "\n\n".join([doc.page_content for doc in docs])
-                model = genai.GenerativeModel("gemini-1.5-flash-latest")
-                response = model.generate_content(
-                    f"Answer this question based on the document below.\n\nDocument:\n{context}\n\nQuestion: {prompt}\n\nAnswer concisely and accurately."
+                response = client.models.generate_content(
+                    model="gemini-2.0-flash",
+                    contents=f"Answer this question based on the document below.\n\nDocument:\n{context}\n\nQuestion: {prompt}\n\nAnswer concisely and accurately."
                 )
                 answer = response.text
                 st.write(answer)
