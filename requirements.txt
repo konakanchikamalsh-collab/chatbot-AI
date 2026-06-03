@@ -1,10 +1,9 @@
 streamlit
-langchain
+openai
 langchain-openai
 langchain-community
 langchain-text-splitters
-openai
+faiss-cpu
 PyPDF2
-chromadb
-python-dotenv
 pillow>=10.4.0
+numpy
