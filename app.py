@@ -2,13 +2,13 @@ import streamlit as st
 from PyPDF2 import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from google import genai
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from groq import Groq
 
 st.set_page_config(page_title="AI Document Chatbot", page_icon="📄", layout="wide")
 
-api_key = st.secrets["GOOGLE_API_KEY"]
-client = genai.Client(api_key=api_key)
+api_key = st.secrets["GROQ_API_KEY"]
+client = Groq(api_key=api_key)
 
 st.markdown("""
 <style>
@@ -57,9 +57,9 @@ with st.sidebar:
 
                 splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
                 chunks = splitter.split_text(raw_text)
-                embeddings = GoogleGenerativeAIEmbeddings(
-                    model="gemini-embedding-001",
-                    google_api_key=api_key
+
+                embeddings = HuggingFaceEmbeddings(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2"
                 )
                 st.session_state.vectorstore = FAISS.from_texts(chunks, embeddings)
                 st.session_state.doc_processed = True
@@ -110,10 +110,14 @@ else:
             with st.spinner("Thinking..."):
                 docs = st.session_state.vectorstore.similarity_search(prompt, k=3)
                 context = "\n\n".join([doc.page_content for doc in docs])
-                response = client.models.generate_content(
-                    model="gemini-2.0-flash",
-                    contents=f"Answer this question based on the document below.\n\nDocument:\n{context}\n\nQuestion: {prompt}\n\nAnswer concisely and accurately."
+
+                response = client.chat.completions.create(
+                    model="llama3-8b-8192",
+                    messages=[
+                        {"role": "system", "content": f"Answer questions based on this document:\n\n{context}\n\nBe concise and accurate."},
+                        {"role": "user", "content": prompt}
+                    ]
                 )
-                answer = response.text
+                answer = response.choices[0].message.content
                 st.write(answer)
                 st.session_state.chat_history.append({"role": "assistant", "content": answer})
