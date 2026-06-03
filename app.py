@@ -142,7 +142,7 @@ else:
                 context = "\n\n".join([doc.page_content for doc in docs])
 
                 llm = ChatGoogleGenerativeAI(
-                    model="gemini-1.5-flash",
+                    model="gemini-2.0-flash",
                     google_api_key=api_key,
                     temperature=0
                 )
