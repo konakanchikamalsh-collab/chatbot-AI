@@ -19,6 +19,24 @@ st.markdown("""
         background: rgba(255,255,255,0.05) !important;
         border-right: 1px solid rgba(255,255,255,0.1);
     }
+    [data-testid="stFileUploader"] {
+        background: rgba(255,255,255,0.05) !important;
+        border: 2px dashed rgba(255,255,255,0.3) !important;
+        border-radius: 10px !important;
+    }
+    [data-testid="stFileUploader"] * {
+        color: white !important;
+        background: transparent !important;
+    }
+    [data-testid="stFileUploaderDropzone"] {
+        background: rgba(255,255,255,0.05) !important;
+    }
+    [data-testid="stFileUploaderDropzone"] button {
+        background: rgba(102, 126, 234, 0.3) !important;
+        color: white !important;
+        border: 1px solid rgba(102, 126, 234, 0.5) !important;
+        border-radius: 8px !important;
+    }
     .stButton button {
         background: linear-gradient(135deg, #667eea, #764ba2) !important;
         color: white !important;
@@ -53,18 +71,26 @@ with st.sidebar:
                 pdf_reader = PdfReader(uploaded_file)
                 raw_text = ""
                 for page in pdf_reader.pages:
-                    raw_text += page.extract_text()
+                    text = page.extract_text()
+                    if text:
+                        raw_text += text + "\n"
 
-                splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-                chunks = splitter.split_text(raw_text)
-
-                embeddings = HuggingFaceEmbeddings(
-                    model_name="sentence-transformers/all-MiniLM-L6-v2"
-                )
-                st.session_state.vectorstore = FAISS.from_texts(chunks, embeddings)
-                st.session_state.doc_processed = True
-                st.session_state.doc_name = uploaded_file.name
-                st.success(f"✅ Ready! {len(chunks)} chunks")
+                if not raw_text.strip():
+                    st.error("❌ Could not extract text. Try a different PDF.")
+                else:
+                    splitter = RecursiveCharacterTextSplitter(
+                        chunk_size=500,
+                        chunk_overlap=100,
+                        separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""]
+                    )
+                    chunks = splitter.split_text(raw_text)
+                    embeddings = HuggingFaceEmbeddings(
+                        model_name="sentence-transformers/all-MiniLM-L6-v2"
+                    )
+                    st.session_state.vectorstore = FAISS.from_texts(chunks, embeddings)
+                    st.session_state.doc_processed = True
+                    st.session_state.doc_name = uploaded_file.name
+                    st.success(f"✅ Ready! {len(chunks)} chunks")
 
     st.markdown("---")
     if st.session_state.doc_processed:
@@ -110,9 +136,8 @@ else:
             with st.spinner("Thinking..."):
                 docs = st.session_state.vectorstore.similarity_search(prompt, k=3)
                 context = "\n\n".join([doc.page_content for doc in docs])
-
                 response = client.chat.completions.create(
-                   model="llama-3.1-8b-instant",
+                    model="llama3-8b-8192",
                     messages=[
                         {"role": "system", "content": f"Answer questions based on this document:\n\n{context}\n\nBe concise and accurate."},
                         {"role": "user", "content": prompt}
