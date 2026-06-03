@@ -3,7 +3,7 @@ from PyPDF2 import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, SystemMessage
+
 
 st.set_page_config(page_title="AI Document Chatbot", page_icon="📄", layout="wide")
 
@@ -141,16 +141,10 @@ else:
                 docs = st.session_state.vectorstore.similarity_search(prompt, k=3)
                 context = "\n\n".join([doc.page_content for doc in docs])
 
-                llm = ChatGoogleGenerativeAI(
-                    model="gemini-2.0-flash",
-                    google_api_key=api_key,
-                    temperature=0
-                )
-                messages = [
-                    SystemMessage(content=f"Answer questions based on this document:\n\n{context}\n\nBe concise and accurate."),
-                    HumanMessage(content=prompt)
-                ]
-                response = llm.invoke(messages)
-                answer = response.content
-                st.write(answer)
-                st.session_state.chat_history.append({"role": "assistant", "content": answer})
+               import google.generativeai as genai
+genai.configure(api_key=api_key)
+model = genai.GenerativeModel("gemini-2.0-flash")
+response = model.generate_content(
+    f"Answer this question based on the document below.\n\nDocument:\n{context}\n\nQuestion: {prompt}\n\nAnswer concisely and accurately."
+)
+answer = response.text
