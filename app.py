@@ -4,6 +4,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from groq import Groq
+import docx
+import openpyxl
 
 st.set_page_config(page_title="AI Document Chatbot", page_icon="📄", layout="wide")
 
@@ -49,6 +51,38 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+def extract_text(uploaded_file):
+    name = uploaded_file.name.lower()
+    if name.endswith(".pdf"):
+        pdf_reader = PdfReader(uploaded_file)
+        text = ""
+        for page in pdf_reader.pages:
+            t = page.extract_text()
+            if t:
+                text += t + "\n"
+        return text
+    elif name.endswith(".docx"):
+        doc = docx.Document(uploaded_file)
+        text = ""
+        for para in doc.paragraphs:
+            if para.text:
+                text += para.text + "\n"
+        return text
+    elif name.endswith(".xlsx"):
+        wb = openpyxl.load_workbook(uploaded_file)
+        text = ""
+        for sheet in wb.sheetnames:
+            ws = wb[sheet]
+            text += f"Sheet: {sheet}\n"
+            for row in ws.iter_rows(values_only=True):
+                row_text = " | ".join([str(cell) for cell in row if cell is not None])
+                if row_text:
+                    text += row_text + "\n"
+        return text
+    elif name.endswith(".txt"):
+        return uploaded_file.read().decode("utf-8")
+    return ""
+
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "vectorstore" not in st.session_state:
@@ -61,22 +95,19 @@ if "doc_name" not in st.session_state:
 with st.sidebar:
     st.markdown("## ⚙️ Setup")
     st.markdown("---")
-    uploaded_file = st.file_uploader("📎 Upload PDF", type=["pdf"])
+    uploaded_file = st.file_uploader(
+        "📎 Upload Document",
+        type=["pdf", "docx", "xlsx", "txt"]
+    )
 
     if st.button("🚀 Process Document", use_container_width=True):
         if not uploaded_file:
-            st.error("❌ Upload a PDF first")
+            st.error("❌ Upload a file first")
         else:
             with st.spinner("🔍 Reading document..."):
-                pdf_reader = PdfReader(uploaded_file)
-                raw_text = ""
-                for page in pdf_reader.pages:
-                    text = page.extract_text()
-                    if text:
-                        raw_text += text + "\n"
-
+                raw_text = extract_text(uploaded_file)
                 if not raw_text.strip():
-                    st.error("❌ Could not extract text. Try a different PDF.")
+                    st.error("❌ Could not extract text. Try a different file.")
                 else:
                     splitter = RecursiveCharacterTextSplitter(
                         chunk_size=500,
@@ -106,17 +137,19 @@ with st.sidebar:
 
 if not st.session_state.doc_processed:
     st.title("📄 AI Document Chatbot")
-    st.markdown("Upload any PDF and have a conversation with it")
+    st.markdown("Upload any document and have a conversation with it")
     st.markdown("---")
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.info("🧠 **Smart Understanding**\n\nAI reads your entire document instantly")
+        st.info("📄 **PDF**\n\nReports, contracts, manuals")
     with col2:
-        st.info("💬 **Natural Chat**\n\nAsk questions in plain English")
+        st.info("📝 **Word**\n\nDocs, letters, proposals")
     with col3:
-        st.info("⚡ **Instant Answers**\n\nNo more scrolling through pages")
+        st.info("📊 **Excel**\n\nSpreadsheets, data, budgets")
+    with col4:
+        st.info("📃 **Text**\n\nPlain text files")
     st.markdown("---")
-    st.warning("👈 Upload your PDF in the sidebar to get started")
+    st.warning("👈 Upload your document in the sidebar to get started")
 
 else:
     st.title("📄 AI Document Chatbot")
