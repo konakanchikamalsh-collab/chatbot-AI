@@ -112,7 +112,7 @@ else:
                 context = "\n\n".join([doc.page_content for doc in docs])
 
                 response = client.chat.completions.create(
-                    model="llama3-8b-8192",
+                   model="llama-3.1-8b-instant",
                     messages=[
                         {"role": "system", "content": f"Answer questions based on this document:\n\n{context}\n\nBe concise and accurate."},
                         {"role": "user", "content": prompt}
