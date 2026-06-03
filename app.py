@@ -14,29 +14,8 @@ st.markdown("""
 <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
     .stApp {
         background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-    }
-    .main-header h1 {
-        font-size: 2.8rem;
-        font-weight: 800;
-        background: linear-gradient(90deg, #a78bfa, #60a5fa, #34d399);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-align: center;
-    }
-    .main-header p {
-        color: rgba(255,255,255,0.5);
-        text-align: center;
-    }
-    .feature-card {
-        background: rgba(255,255,255,0.05);
-        border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 12px;
-        padding: 1.2rem;
-        text-align: center;
-        color: white;
     }
     [data-testid="stSidebar"] {
         background: rgba(255,255,255,0.05) !important;
@@ -49,7 +28,7 @@ st.markdown("""
         border-radius: 10px !important;
         font-weight: 600 !important;
     }
-    p, span, label, div { color: rgba(255,255,255,0.85); }
+    h1, h2, h3, p, span, label { color: white !important; }
     hr { border-color: rgba(255,255,255,0.1) !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -102,13 +81,41 @@ with st.sidebar:
         st.rerun()
 
 if not st.session_state.doc_processed:
-    st.markdown("""
-    <div class="main-header">
-        <h1>📄 AI Document Chatbot</h1>
-        <p>Upload any PDF and have a conversation with it</p>
-    </div>
-    """, unsafe_allow_html=True)
-
+    st.title("📄 AI Document Chatbot")
+    st.markdown("Upload any PDF and have a conversation with it")
+    st.markdown("---")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown('<div class="feature-card"><div style="font-size:1.8rem">🧠</div><h4>Smart Understanding</h4><p style="font-size:0.8rem;color:rgba(255,255,255,0.5)">AI reads your entire document instantly</p></div>', unsafe_allow_html=True)
+        st.info("🧠 **Smart Understanding**\n\nAI reads your entire document instantly")
+    with col2:
+        st.info("💬 **Natural Chat**\n\nAsk questions in plain English")
+    with col3:
+        st.info("⚡ **Instant Answers**\n\nNo more scrolling through pages")
+    st.markdown("---")
+    st.warning("👈 Upload your PDF in the sidebar to get started")
+
+else:
+    st.title("📄 AI Document Chatbot")
+    st.markdown(f"Chatting with: **{st.session_state.doc_name}**")
+    st.markdown("---")
+
+    for message in st.session_state.chat_history:
+        with st.chat_message(message["role"]):
+            st.write(message["content"])
+
+    if prompt := st.chat_input("Ask anything about your document..."):
+        st.session_state.chat_history.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.write(prompt)
+
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                docs = st.session_state.vectorstore.similarity_search(prompt, k=3)
+                context = "\n\n".join([doc.page_content for doc in docs])
+                model = genai.GenerativeModel("gemini-1.5-flash-latest")
+                response = model.generate_content(
+                    f"Answer this question based on the document below.\n\nDocument:\n{context}\n\nQuestion: {prompt}\n\nAnswer concisely and accurately."
+                )
+                answer = response.text
+                st.write(answer)
+                st.session_state.chat_history.append({"role": "assistant", "content": answer})
