@@ -80,7 +80,7 @@ with st.sidebar:
                 splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
                 chunks = splitter.split_text(raw_text)
                 embeddings = GoogleGenerativeAIEmbeddings(
-                    model="models/text-embedding-004",
+                    model="gemini-embedding-001",
                     google_api_key=api_key
                 )
                 st.session_state.vectorstore = FAISS.from_texts(chunks, embeddings)
