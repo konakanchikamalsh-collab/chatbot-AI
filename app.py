@@ -2,12 +2,13 @@ import streamlit as st
 from PyPDF2 import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+import google.generativeai as genai
 
 st.set_page_config(page_title="AI Document Chatbot", page_icon="📄", layout="wide")
 
 api_key = st.secrets["GOOGLE_API_KEY"]
+genai.configure(api_key=api_key)
 
 st.markdown("""
 <style>
@@ -141,10 +142,10 @@ else:
                 docs = st.session_state.vectorstore.similarity_search(prompt, k=3)
                 context = "\n\n".join([doc.page_content for doc in docs])
 
-               import google.generativeai as genai
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel("gemini-2.0-flash")
-response = model.generate_content(
-    f"Answer this question based on the document below.\n\nDocument:\n{context}\n\nQuestion: {prompt}\n\nAnswer concisely and accurately."
-)
-answer = response.text
+                model = genai.GenerativeModel("gemini-2.0-flash")
+                response = model.generate_content(
+                    f"Answer this question based on the document below.\n\nDocument:\n{context}\n\nQuestion: {prompt}\n\nAnswer concisely and accurately."
+                )
+                answer = response.text
+                st.write(answer)
+                st.session_state.chat_history.append({"role": "assistant", "content": answer})
