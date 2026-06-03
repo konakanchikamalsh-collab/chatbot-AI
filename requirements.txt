@@ -1,10 +1,8 @@
-langchain-google-genai>=4.0.0
-google-generativeai
 streamlit
+google-genai
 langchain-google-genai
 langchain-community
 langchain-text-splitters
 faiss-cpu
 PyPDF2
-pillow>=10.4.0
 numpy
