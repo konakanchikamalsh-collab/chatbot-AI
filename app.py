@@ -1,13 +1,13 @@
 import streamlit as st
 from PyPDF2 import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
-from openai import OpenAI
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain_core.messages import HumanMessage, SystemMessage
 
 st.set_page_config(page_title="AI Document Chatbot", page_icon="📄", layout="wide")
 
-api_key = st.secrets["OPENAI_API_KEY"]
+api_key = st.secrets["GOOGLE_API_KEY"]
 
 st.markdown("""
 <style>
@@ -79,7 +79,10 @@ with st.sidebar:
 
                 splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
                 chunks = splitter.split_text(raw_text)
-                embeddings = OpenAIEmbeddings(openai_api_key=api_key)
+                embeddings = GoogleGenerativeAIEmbeddings(
+                    model="models/embedding-001",
+                    google_api_key=api_key
+                )
                 st.session_state.vectorstore = FAISS.from_texts(chunks, embeddings)
                 st.session_state.doc_processed = True
                 st.session_state.doc_name = uploaded_file.name
@@ -137,14 +140,17 @@ else:
             with st.spinner("Thinking..."):
                 docs = st.session_state.vectorstore.similarity_search(prompt, k=3)
                 context = "\n\n".join([doc.page_content for doc in docs])
-                client = OpenAI(api_key=api_key)
-                response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {"role": "system", "content": f"Answer questions based on this document:\n\n{context}"},
-                        {"role": "user", "content": prompt}
-                    ]
+
+                llm = ChatGoogleGenerativeAI(
+                    model="gemini-1.5-flash",
+                    google_api_key=api_key,
+                    temperature=0
                 )
-                answer = response.choices[0].message.content
+                messages = [
+                    SystemMessage(content=f"Answer questions based on this document:\n\n{context}\n\nBe concise and accurate."),
+                    HumanMessage(content=prompt)
+                ]
+                response = llm.invoke(messages)
+                answer = response.content
                 st.write(answer)
                 st.session_state.chat_history.append({"role": "assistant", "content": answer})
