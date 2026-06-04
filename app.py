@@ -108,18 +108,21 @@ def extract_text(uploaded_file):
         return uploaded_file.read().decode("utf-8")
     return ""
 
-from tavily import TavilyClient
-
 def search_internet(query):
     try:
-        tavily = TavilyClient(api_key=st.secrets["TAVILY_API_KEY"])
-        results = tavily.search(query=query, max_results=5)
-        context = ""
-        for r in results.get("results", []):
-            context += f"Title: {r.get('title', '')}\nContent: {r.get('content', '')}\nURL: {r.get('url', '')}\n\n"
-        return context if context else "No results found."
+        with DDGS() as ddgs:
+            results = list(ddgs.text(query, max_results=6))
+            if not results:
+                return "No search results found."
+            context = ""
+            for r in results:
+                context += f"Title: {r.get('title', '')}\nSummary: {r.get('body', '')}\nURL: {r.get('href', '')}\n\n"
+            return context
     except Exception as e:
         return f"Search error: {str(e)}"
+
+def get_history():
+    return [{"role": m["role"], "content": m["content"]} for m in st.session_state.chat_history[-10:]]
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
@@ -208,6 +211,7 @@ for message in st.session_state.chat_history:
         st.write(message["content"])
 
 placeholder = "Ask about your document..." if "📄 Document" in mode else "Ask me anything..."
+
 if prompt := st.chat_input(placeholder):
     st.session_state.chat_history.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -215,35 +219,29 @@ if prompt := st.chat_input(placeholder):
 
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
+
             if "🌐 Internet" in mode:
                 search_results = search_internet(prompt)
-                response = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=[
-                        {"role": "system", "content": f"""You are a helpful AI assistant with access to real time internet search results.
+                messages = [
+                    {"role": "system", "content": f"""You are a helpful AI assistant with access to real time internet search results.
 
-Search results for the query:
+Search results:
 {search_results}
 
-IMPORTANT RULES:
-- Answer ONLY from the search results above
-- If search results contain the answer give it directly and confidently
-- Never say your data is limited or you have a cutoff date
+IMPORTANT:
+- Answer ONLY from search results above
+- Answer directly and confidently
+- Never say your data is limited or has a cutoff
 - Never tell user to check other websites
-- Just answer the question from what you found in search results
-- Be conversational direct and helpful
-- If results dont have enough info say what you found and what is unclear"""},
-                        {"role": "user", "content": prompt}
-                    ]
-                )
+- Remember previous messages in our conversation
+- Be conversational and helpful"""},
+                ] + get_history()
 
             elif st.session_state.doc_text:
-                response = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=[
-                        {"role": "system", "content": f"""You are an expert interview coach helping a candidate answer questions based on their document.
+                messages = [
+                    {"role": "system", "content": f"""You are an expert interview coach helping a candidate answer questions based on their document.
 
-Here is the complete document:
+Complete document:
 {st.session_state.doc_text}
 
 Rules:
@@ -251,39 +249,35 @@ Rules:
 - Sound confident natural and conversational
 - Tell a story not a list
 - Use specific details from the document
+- Remember previous messages in our conversation
 - Never sound robotic or generic
 - Never start with Certainly or Of course"""},
-                        {"role": "user", "content": prompt}
-                    ]
-                )
+                ] + get_history()
 
             elif st.session_state.vectorstore:
                 docs = st.session_state.vectorstore.similarity_search(prompt, k=6)
                 context = "\n\n".join([doc.page_content for doc in docs])
-                response = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=[
-                        {"role": "system", "content": f"""You are a helpful AI assistant answering questions based on this document:
+                messages = [
+                    {"role": "system", "content": f"""You are a helpful AI assistant answering questions based on this document:
 
 {context}
 
 Rules:
 - Answer clearly and accurately
 - Be conversational and natural
-- Use specific details from the document
-- Never make up information"""},
-                        {"role": "user", "content": prompt}
-                    ]
-                )
+- Remember previous messages in our conversation
+- Use specific details from the document"""},
+                ] + get_history()
 
             else:
-                response = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=[
-                        {"role": "system", "content": "You are a helpful AI assistant."},
-                        {"role": "user", "content": prompt}
-                    ]
-                )
+                messages = [
+                    {"role": "system", "content": "You are a helpful friendly AI assistant. Remember the conversation history and answer naturally."},
+                ] + get_history()
+
+            response = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=messages
+            )
 
             answer = response.choices[0].message.content
             st.write(answer)
