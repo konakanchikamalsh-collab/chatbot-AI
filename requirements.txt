@@ -1,5 +1,6 @@
 streamlit
 groq
+duckduckgo-search
 langchain-community
 langchain-text-splitters
 faiss-cpu
