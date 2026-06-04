@@ -108,16 +108,16 @@ def extract_text(uploaded_file):
         return uploaded_file.read().decode("utf-8")
     return ""
 
+from tavily import TavilyClient
+
 def search_internet(query):
     try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=6))
-            if not results:
-                return "No search results found."
-            context = ""
-            for r in results:
-                context += f"Title: {r.get('title', '')}\nSummary: {r.get('body', '')}\nURL: {r.get('href', '')}\n\n"
-            return context
+        tavily = TavilyClient(api_key=st.secrets["TAVILY_API_KEY"])
+        results = tavily.search(query=query, max_results=5)
+        context = ""
+        for r in results.get("results", []):
+            context += f"Title: {r.get('title', '')}\nContent: {r.get('content', '')}\nURL: {r.get('url', '')}\n\n"
+        return context if context else "No results found."
     except Exception as e:
         return f"Search error: {str(e)}"
 
