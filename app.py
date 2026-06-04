@@ -17,21 +17,15 @@ st.markdown("""
 <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-
-    /* Mobile friendly base */
     .stApp {
         background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
         max-width: 100% !important;
     }
-
-    /* Sidebar mobile */
     [data-testid="stSidebar"] {
         background: rgba(255,255,255,0.05) !important;
         border-right: 1px solid rgba(255,255,255,0.1);
         min-width: 250px !important;
     }
-
-    /* File uploader */
     [data-testid="stFileUploader"] {
         background: rgba(255,255,255,0.05) !important;
         border: 2px dashed rgba(255,255,255,0.3) !important;
@@ -50,8 +44,6 @@ st.markdown("""
         border: 1px solid rgba(102, 126, 234, 0.5) !important;
         border-radius: 8px !important;
     }
-
-    /* Buttons */
     .stButton button {
         background: linear-gradient(135deg, #667eea, #764ba2) !important;
         color: white !important;
@@ -62,39 +54,15 @@ st.markdown("""
         padding: 0.6rem !important;
         font-size: 0.95rem !important;
     }
-
-    /* Chat messages mobile friendly */
     [data-testid="stChatMessage"] {
         padding: 0.5rem !important;
         margin: 0.3rem 0 !important;
         border-radius: 12px !important;
         max-width: 100% !important;
     }
-
-    /* Chat input */
-    [data-testid="stChatInput"] {
-        border-radius: 20px !important;
-    }
-
-    /* Radio buttons */
-    .stRadio label {
-        color: white !important;
-        font-size: 0.9rem !important;
-    }
-
-    /* Mode selector */
-    .mode-selector {
-        background: rgba(255,255,255,0.05);
-        border-radius: 10px;
-        padding: 0.5rem;
-        margin-bottom: 1rem;
-    }
-
-    /* Text */
+    .stRadio label { color: white !important; font-size: 0.9rem !important; }
     h1, h2, h3, p, span, label, div { color: white !important; }
     hr { border-color: rgba(255,255,255,0.1) !important; }
-
-    /* Mobile adjustments */
     @media (max-width: 768px) {
         .stApp { padding: 0.5rem !important; }
         h1 { font-size: 1.5rem !important; }
@@ -143,15 +111,16 @@ def extract_text(uploaded_file):
 def search_internet(query):
     try:
         with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=5))
+            results = list(ddgs.text(query, max_results=6))
+            if not results:
+                return "No search results found."
             context = ""
             for r in results:
-                context += f"Source: {r['href']}\n{r['title']}\n{r['body']}\n\n"
+                context += f"Title: {r.get('title', '')}\nSummary: {r.get('body', '')}\nURL: {r.get('href', '')}\n\n"
             return context
     except Exception as e:
-        return f"Search failed: {str(e)}"
+        return f"Search error: {str(e)}"
 
-# Session state
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "doc_text" not in st.session_state:
@@ -162,27 +131,15 @@ if "doc_processed" not in st.session_state:
     st.session_state.doc_processed = False
 if "doc_name" not in st.session_state:
     st.session_state.doc_name = ""
-if "mode" not in st.session_state:
-    st.session_state.mode = "Document"
 
-# Sidebar
 with st.sidebar:
     st.markdown("## 🤖 AI Assistant")
     st.markdown("---")
-
-    mode = st.radio(
-        "Choose Mode",
-        ["📄 Document", "🌐 Internet Search"],
-        index=0
-    )
-    st.session_state.mode = mode
+    mode = st.radio("Choose Mode", ["📄 Document", "🌐 Internet Search"], index=0)
     st.markdown("---")
 
     if "📄 Document" in mode:
-        uploaded_file = st.file_uploader(
-            "📎 Upload Document",
-            type=["pdf", "docx", "xlsx", "txt"]
-        )
+        uploaded_file = st.file_uploader("📎 Upload Document", type=["pdf", "docx", "xlsx", "txt"])
 
         if st.button("🚀 Process Document", use_container_width=True):
             if not uploaded_file:
@@ -195,11 +152,9 @@ with st.sidebar:
                     else:
                         word_count = len(raw_text.split())
                         if word_count <= 4000:
-                            # Small doc — send full text
                             st.session_state.doc_text = raw_text
                             st.session_state.vectorstore = None
                         else:
-                            # Large doc — use chunks
                             splitter = RecursiveCharacterTextSplitter(
                                 chunk_size=800,
                                 chunk_overlap=150,
@@ -211,7 +166,6 @@ with st.sidebar:
                             )
                             st.session_state.vectorstore = FAISS.from_texts(chunks, embeddings)
                             st.session_state.doc_text = ""
-
                         st.session_state.doc_processed = True
                         st.session_state.doc_name = uploaded_file.name
                         st.success(f"✅ Ready! ({word_count} words)")
@@ -222,16 +176,14 @@ with st.sidebar:
             st.markdown('<span style="color:#34d399">● Document loaded</span>', unsafe_allow_html=True)
         else:
             st.markdown('<span style="color:#fbbf24">● No document loaded</span>', unsafe_allow_html=True)
-
     else:
-        st.info("🌐 Ask me anything and I'll search the internet for you!")
+        st.info("🌐 Ask me anything and I'll search the internet!")
 
     st.markdown("---")
     if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state.chat_history = []
         st.rerun()
 
-# Main content
 st.title("🤖 AI Assistant")
 
 if "📄 Document" in mode:
@@ -247,16 +199,14 @@ if "📄 Document" in mode:
     else:
         st.markdown(f"Chatting with: **{st.session_state.doc_name}**")
 else:
-    st.markdown("Ask me anything — I'll search the internet!")
+    st.markdown("Ask me anything — I'll search the internet for real time answers!")
 
 st.markdown("---")
 
-# Chat history
 for message in st.session_state.chat_history:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# Chat input
 placeholder = "Ask about your document..." if "📄 Document" in mode else "Ask me anything..."
 if prompt := st.chat_input(placeholder):
     st.session_state.chat_history.append({"role": "user", "content": prompt})
@@ -265,31 +215,29 @@ if prompt := st.chat_input(placeholder):
 
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
-
             if "🌐 Internet" in mode:
-                # Internet search mode
                 search_results = search_internet(prompt)
                 response = client.chat.completions.create(
                     model="llama-3.1-8b-instant",
                     messages=[
-                        {"role": "system", "content": f"""You are a helpful AI assistant that answers questions using internet search results.
+                        {"role": "system", "content": f"""You are a helpful AI assistant with access to real time internet search results.
 
-Here are the search results for the question:
+Search results for the query:
 {search_results}
 
-Rules:
-- Answer clearly and accurately based on search results
-- Start with a direct answer
-- Add relevant details in a natural conversational way
-- Mention sources when relevant
-- Keep it concise but complete
-- Never make up information not in the search results"""},
+IMPORTANT RULES:
+- Answer ONLY from the search results above
+- If search results contain the answer give it directly and confidently
+- Never say your data is limited or you have a cutoff date
+- Never tell user to check other websites
+- Just answer the question from what you found in search results
+- Be conversational direct and helpful
+- If results dont have enough info say what you found and what is unclear"""},
                         {"role": "user", "content": prompt}
                     ]
                 )
 
             elif st.session_state.doc_text:
-                # Small doc — full text mode
                 response = client.chat.completions.create(
                     model="llama-3.1-8b-instant",
                     messages=[
@@ -310,7 +258,6 @@ Rules:
                 )
 
             elif st.session_state.vectorstore:
-                # Large doc — chunks mode
                 docs = st.session_state.vectorstore.similarity_search(prompt, k=6)
                 context = "\n\n".join([doc.page_content for doc in docs])
                 response = client.chat.completions.create(
