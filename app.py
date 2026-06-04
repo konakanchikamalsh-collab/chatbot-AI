@@ -168,14 +168,4 @@ else:
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 docs = st.session_state.vectorstore.similarity_search(prompt, k=3)
-                context = "\n\n".join([doc.page_content for doc in docs])
-                response = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=[
-                        {"role": "system", "content": f"Answer questions based on this document:\n\n{context}\n\nBe concise and accurate."},
-                        {"role": "user", "content": prompt}
-                    ]
-                )
-                answer = response.choices[0].message.content
-                st.write(answer)
-                st.session_state.chat_history.append({"role": "assistant", "content": answer})
+                context = "\n\n".join([
