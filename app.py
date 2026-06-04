@@ -10,19 +10,13 @@ import openpyxl
 
 st.set_page_config(page_title="AI Assistant", page_icon="🤖", layout="centered")
 
-groq_key = st.secrets["GROQ_API_KEY"]
-tavily_key = st.secrets["TAVILY_API_KEY"]
-client = Groq(api_key=groq_key)
-tavily = TavilyClient(api_key=tavily_key)
+groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+tavily_client = TavilyClient(api_key=st.secrets["TAVILY_API_KEY"])
 
 st.markdown("""
 <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    .stApp {
-        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-        max-width: 100% !important;
-    }
+    #MainMenu, footer { visibility: hidden; }
+    .stApp { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); }
     [data-testid="stSidebar"] {
         background: rgba(255,255,255,0.05) !important;
         border-right: 1px solid rgba(255,255,255,0.1);
@@ -32,15 +26,10 @@ st.markdown("""
         border: 2px dashed rgba(255,255,255,0.3) !important;
         border-radius: 10px !important;
     }
-    [data-testid="stFileUploader"] * {
-        color: white !important;
-        background: transparent !important;
-    }
-    [data-testid="stFileUploaderDropzone"] {
-        background: rgba(255,255,255,0.05) !important;
-    }
+    [data-testid="stFileUploader"] * { color: white !important; background: transparent !important; }
+    [data-testid="stFileUploaderDropzone"] { background: rgba(255,255,255,0.05) !important; }
     [data-testid="stFileUploaderDropzone"] button {
-        background: rgba(102, 126, 234, 0.3) !important;
+        background: rgba(102,126,234,0.3) !important;
         color: white !important;
         border: 1px solid rgba(102,126,234,0.5) !important;
         border-radius: 8px !important;
@@ -53,186 +42,152 @@ st.markdown("""
         font-weight: 600 !important;
         padding: 0.6rem !important;
     }
-    /* Mode cards */
     .mode-card {
         background: rgba(255,255,255,0.05);
         border: 2px solid rgba(255,255,255,0.1);
         border-radius: 16px;
-        padding: 1.2rem;
+        padding: 1rem;
         text-align: center;
-        cursor: pointer;
-        transition: all 0.3s ease;
         margin: 0.3rem;
-    }
-    .mode-card:hover {
-        background: rgba(102,126,234,0.2);
-        border-color: rgba(102,126,234,0.5);
-        transform: translateY(-2px);
     }
     .mode-card.active {
         background: linear-gradient(135deg, rgba(102,126,234,0.3), rgba(118,75,162,0.3));
         border-color: #667eea;
         box-shadow: 0 0 20px rgba(102,126,234,0.3);
     }
-    .mode-icon { font-size: 2rem; margin-bottom: 0.5rem; }
-    .mode-title { font-size: 0.95rem; font-weight: 700; color: white !important; margin-bottom: 0.3rem; }
-    .mode-desc { font-size: 0.75rem; color: rgba(255,255,255,0.5) !important; }
-    /* Chat */
-    [data-testid="stChatMessage"] {
-        padding: 0.5rem !important;
-        border-radius: 12px !important;
-        max-width: 100% !important;
-    }
     h1, h2, h3, p, span, label, div { color: white !important; }
     hr { border-color: rgba(255,255,255,0.1) !important; }
     @media (max-width: 768px) {
         h1 { font-size: 1.5rem !important; }
-        .mode-icon { font-size: 1.5rem; }
-        .mode-title { font-size: 0.85rem; }
+        [data-testid="stChatMessage"] { font-size: 0.9rem !important; }
     }
 </style>
 """, unsafe_allow_html=True)
 
-def extract_text(uploaded_file):
-    name = uploaded_file.name.lower()
+def read_file(f):
+    name = f.name.lower()
+    text = ""
     if name.endswith(".pdf"):
-        pdf_reader = PdfReader(uploaded_file)
-        text = ""
-        for page in pdf_reader.pages:
+        for page in PdfReader(f).pages:
             t = page.extract_text()
             if t:
                 text += t + "\n"
-        return text
     elif name.endswith(".docx"):
-        doc = docx.Document(uploaded_file)
-        text = ""
-        for para in doc.paragraphs:
-            if para.text:
-                text += para.text + "\n"
-        for table in doc.tables:
+        d = docx.Document(f)
+        for p in d.paragraphs:
+            if p.text:
+                text += p.text + "\n"
+        for table in d.tables:
             for row in table.rows:
                 for cell in row.cells:
                     if cell.text.strip():
                         text += cell.text.strip() + "\n"
-        return text
     elif name.endswith(".xlsx"):
-        wb = openpyxl.load_workbook(uploaded_file)
-        text = ""
+        wb = openpyxl.load_workbook(f)
         for sheet in wb.sheetnames:
             ws = wb[sheet]
             text += f"Sheet: {sheet}\n"
             for row in ws.iter_rows(values_only=True):
-                row_text = " | ".join([str(cell) for cell in row if cell is not None])
-                if row_text:
-                    text += row_text + "\n"
-        return text
+                r = " | ".join([str(c) for c in row if c is not None])
+                if r:
+                    text += r + "\n"
     elif name.endswith(".txt"):
-        return uploaded_file.read().decode("utf-8")
-    return ""
+        text = f.read().decode("utf-8")
+    return text
 
-def search_internet(query):
+def web_search(q):
     try:
-        results = tavily.search(query=query, max_results=5)
-        context = ""
-        for r in results.get("results", []):
-            context += f"Title: {r.get('title','')}\nContent: {r.get('content','')}\nURL: {r.get('url','')}\n\n"
-        return context if context else "No results found."
+        res = tavily_client.search(query=q, max_results=5)
+        out = ""
+        for r in res.get("results", []):
+            out += f"Title: {r.get('title','')}\n{r.get('content','')}\nURL: {r.get('url','')}\n\n"
+        return out or "Nothing found."
     except Exception as e:
-        return f"Search error: {str(e)}"
+        return f"Search failed: {e}"
 
-def get_history():
+def history():
     return [{"role": m["role"], "content": m["content"]} for m in st.session_state.chat_history[-10:]]
 
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-if "doc_text" not in st.session_state:
-    st.session_state.doc_text = ""
-if "vectorstore" not in st.session_state:
-    st.session_state.vectorstore = None
-if "doc_processed" not in st.session_state:
-    st.session_state.doc_processed = False
-if "doc_name" not in st.session_state:
-    st.session_state.doc_name = ""
-if "mode" not in st.session_state:
-    st.session_state.mode = "document"
+def ask_groq(system, extra_context=""):
+    msgs = [{"role": "system", "content": system}] + history()
+    return groq_client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=msgs
+    ).choices[0].message.content
 
-# ── Sidebar ───────────────────────────────────────────────────
+for key, val in {
+    "chat_history": [],
+    "doc_text": "",
+    "vectorstore": None,
+    "doc_processed": False,
+    "doc_name": "",
+    "mode": "document"
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = val
+
 with st.sidebar:
     st.markdown("## 🤖 AI Assistant")
     st.markdown("---")
+    st.markdown("### Mode")
 
-    # Mode selector cards
-    st.markdown("### Choose Mode")
-    col1, col2 = st.columns(2)
-
-    with col1:
-        doc_active = "active" if st.session_state.mode == "document" else ""
-        st.markdown(f"""
-        <div class="mode-card {doc_active}" id="doc-card">
-            <div class="mode-icon">📄</div>
-            <div class="mode-title">Document</div>
-            <div class="mode-desc">Chat with your files</div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Select", key="doc_btn", use_container_width=True):
+    c1, c2 = st.columns(2)
+    with c1:
+        active = "active" if st.session_state.mode == "document" else ""
+        st.markdown(f'<div class="mode-card {active}"><div style="font-size:1.8rem">📄</div><div style="font-weight:700;font-size:0.9rem">Document</div><div style="font-size:0.72rem;color:rgba(255,255,255,0.5)">Chat with files</div></div>', unsafe_allow_html=True)
+        if st.button("Use", key="d", use_container_width=True):
             st.session_state.mode = "document"
             st.rerun()
 
-    with col2:
-        web_active = "active" if st.session_state.mode == "internet" else ""
-        st.markdown(f"""
-        <div class="mode-card {web_active}" id="web-card">
-            <div class="mode-icon">🌐</div>
-            <div class="mode-title">Internet</div>
-            <div class="mode-desc">Search the web</div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Select", key="web_btn", use_container_width=True):
+    with c2:
+        active = "active" if st.session_state.mode == "internet" else ""
+        st.markdown(f'<div class="mode-card {active}"><div style="font-size:1.8rem">🌐</div><div style="font-weight:700;font-size:0.9rem">Internet</div><div style="font-size:0.72rem;color:rgba(255,255,255,0.5)">Search the web</div></div>', unsafe_allow_html=True)
+        if st.button("Use", key="i", use_container_width=True):
             st.session_state.mode = "internet"
             st.rerun()
 
     st.markdown("---")
 
     if st.session_state.mode == "document":
-        uploaded_file = st.file_uploader("📎 Upload Document", type=["pdf", "docx", "xlsx", "txt"])
-        if st.button("🚀 Process Document", use_container_width=True):
-            if not uploaded_file:
-                st.error("❌ Upload a file first")
+        f = st.file_uploader("📎 Upload file", type=["pdf", "docx", "xlsx", "txt"])
+        if st.button("🚀 Process", use_container_width=True):
+            if not f:
+                st.error("Upload a file first!")
             else:
-                with st.spinner("🔍 Reading..."):
-                    raw_text = extract_text(uploaded_file)
-                    if not raw_text.strip():
-                        st.error("❌ Could not extract text.")
+                with st.spinner("Reading..."):
+                    raw = read_file(f)
+                    if not raw.strip():
+                        st.error("Couldn't read this file.")
                     else:
-                        word_count = len(raw_text.split())
-                        if word_count <= 4000:
-                            st.session_state.doc_text = raw_text
+                        words = len(raw.split())
+                        if words <= 4000:
+                            st.session_state.doc_text = raw
                             st.session_state.vectorstore = None
                         else:
-                            splitter = RecursiveCharacterTextSplitter(
-                                chunk_size=800, chunk_overlap=150,
-                                separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""]
+                            chunks = RecursiveCharacterTextSplitter(
+                                chunk_size=800, chunk_overlap=150
+                            ).split_text(raw)
+                            st.session_state.vectorstore = FAISS.from_texts(
+                                chunks,
+                                HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
                             )
-                            chunks = splitter.split_text(raw_text)
-                            embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-                            st.session_state.vectorstore = FAISS.from_texts(chunks, embeddings)
                             st.session_state.doc_text = ""
                         st.session_state.doc_processed = True
-                        st.session_state.doc_name = uploaded_file.name
-                        st.success(f"✅ Ready! ({word_count} words)")
+                        st.session_state.doc_name = f.name
+                        st.success(f"Done! {words} words loaded")
 
         st.markdown("---")
         if st.session_state.doc_processed:
             st.markdown(f"📄 **{st.session_state.doc_name}**")
-            st.markdown('<span style="color:#34d399">● Document loaded</span>', unsafe_allow_html=True)
+            st.markdown('<span style="color:#34d399">● Loaded</span>', unsafe_allow_html=True)
         else:
-            st.markdown('<span style="color:#fbbf24">● No document loaded</span>', unsafe_allow_html=True)
+            st.markdown('<span style="color:#fbbf24">● No file loaded</span>', unsafe_allow_html=True)
     else:
         st.markdown("""
         <div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:1rem;text-align:center">
             <div style="font-size:1.5rem">🌐</div>
-            <div style="font-weight:600;margin:0.3rem 0">Internet Search Active</div>
-            <div style="font-size:0.8rem;color:rgba(255,255,255,0.5)">Ask me anything — I'll search the web for real time answers</div>
+            <div style="font-weight:600;margin:0.3rem 0">Web Search Active</div>
+            <div style="font-size:0.78rem;color:rgba(255,255,255,0.5)">Ask anything — I'll find the latest answers</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -241,38 +196,31 @@ with st.sidebar:
         st.session_state.chat_history = []
         st.rerun()
 
-# ── Main Content ──────────────────────────────────────────────
 st.title("🤖 AI Assistant")
 
-if st.session_state.mode == "document":
-    if not st.session_state.doc_processed:
-        st.markdown("Upload any document and have a full conversation with it")
-        st.markdown("---")
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.markdown('<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:0.8rem;text-align:center"><div style="font-size:1.5rem">📄</div><div style="font-size:0.8rem;margin-top:0.3rem">PDF</div></div>', unsafe_allow_html=True)
-        with col2:
-            st.markdown('<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:0.8rem;text-align:center"><div style="font-size:1.5rem">📝</div><div style="font-size:0.8rem;margin-top:0.3rem">Word</div></div>', unsafe_allow_html=True)
-        with col3:
-            st.markdown('<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:0.8rem;text-align:center"><div style="font-size:1.5rem">📊</div><div style="font-size:0.8rem;margin-top:0.3rem">Excel</div></div>', unsafe_allow_html=True)
-        with col4:
-            st.markdown('<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:0.8rem;text-align:center"><div style="font-size:1.5rem">📃</div><div style="font-size:0.8rem;margin-top:0.3rem">Text</div></div>', unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.warning("👈 Upload your document in the sidebar to get started")
-    else:
-        st.markdown(f"Chatting with: **{st.session_state.doc_name}**")
+if st.session_state.mode == "document" and not st.session_state.doc_processed:
+    st.markdown("Upload a file and start chatting with it")
+    st.markdown("---")
+    cols = st.columns(4)
+    for col, icon, label in zip(cols, ["📄","📝","📊","📃"], ["PDF","Word","Excel","Text"]):
+        with col:
+            st.markdown(f'<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:0.8rem;text-align:center"><div style="font-size:1.4rem">{icon}</div><div style="font-size:0.8rem;margin-top:0.3rem">{label}</div></div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.warning("👈 Upload your file from the sidebar")
+elif st.session_state.mode == "document" and st.session_state.doc_processed:
+    st.markdown(f"Chatting with **{st.session_state.doc_name}**")
 else:
-    st.markdown("Ask me anything — searching the internet for real time answers!")
+    st.markdown("Ask me anything — searching the web for fresh answers")
 
 st.markdown("---")
 
-for message in st.session_state.chat_history:
-    with st.chat_message(message["role"]):
-        st.write(message["content"])
+for msg in st.session_state.chat_history:
+    with st.chat_message(msg["role"]):
+        st.write(msg["content"])
 
-placeholder = "Ask about your document..." if st.session_state.mode == "document" else "Ask me anything..."
+tip = "Ask about your document..." if st.session_state.mode == "document" else "What do you want to know?"
 
-if prompt := st.chat_input(placeholder):
+if prompt := st.chat_input(tip):
     st.session_state.chat_history.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.write(prompt)
@@ -281,60 +229,38 @@ if prompt := st.chat_input(placeholder):
         with st.spinner("Thinking..."):
 
             if st.session_state.mode == "internet":
-                search_results = search_internet(prompt)
-                messages = [
-                    {"role": "system", "content": f"""You are a helpful AI assistant with real time internet access.
+                results = web_search(prompt)
+                system = f"""You're a helpful assistant with live web access.
 
-Search results:
-{search_results}
+Here's what I found online:
+{results}
 
-Rules:
-- Answer directly and confidently from search results
-- Never say your data is limited or has a cutoff
-- Never tell user to check other websites
-- Remember our conversation history
-- Be conversational and natural"""},
-                ] + get_history()
+Be direct and conversational. Answer from the search results.
+If something is vague like "before year" or "previous one", look at our chat history to figure out what they mean.
+Never say you don't have access to recent data. Never send them to other websites. Just answer."""
 
             elif st.session_state.doc_text:
-                messages = [
-                    {"role": "system", "content": f"""You are an expert assistant helping answer questions based on this document.
+                system = f"""You're helping someone answer questions based on their document.
 
-Complete document:
+Document content:
 {st.session_state.doc_text}
 
-Rules:
-- Answer in first person as the candidate speaking
-- Sound confident natural and conversational
-- Tell a story not a list
-- Use specific real details from the document
-- Remember our conversation history
-- Never sound robotic"""},
-                ] + get_history()
+Speak in first person, naturally and confidently like you're in a real conversation.
+Pull specific details from the document. Don't list things robotically — talk like a human would."""
 
             elif st.session_state.vectorstore:
                 docs = st.session_state.vectorstore.similarity_search(prompt, k=6)
-                context = "\n\n".join([doc.page_content for doc in docs])
-                messages = [
-                    {"role": "system", "content": f"""You are a helpful assistant answering from this document:
+                context = "\n\n".join([d.page_content for d in docs])
+                system = f"""You're helping answer questions from a document.
 
+Relevant content:
 {context}
 
-Rules:
-- Answer clearly and accurately
-- Be conversational and natural
-- Remember our conversation history"""},
-                ] + get_history()
+Be natural and conversational. Use what's in the document to give a real answer."""
 
             else:
-                messages = [
-                    {"role": "system", "content": "You are a helpful friendly AI assistant. Remember conversation history and answer naturally."},
-                ] + get_history()
+                system = "You're a helpful assistant. Be friendly and conversational. Remember what we talked about."
 
-            response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=messages
-            )
-            answer = response.choices[0].message.content
+            answer = ask_groq(system)
             st.write(answer)
             st.session_state.chat_history.append({"role": "assistant", "content": answer})
