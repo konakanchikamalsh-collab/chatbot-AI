@@ -12,8 +12,7 @@ g = Groq(api_key=st.secrets["GROQ_API_KEY"])
 tv = TavilyClient(api_key=st.secrets["TAVILY_API_KEY"])
 
 st.markdown("""<style>
-#MainMenu,footer{visibility:hidden}
-[data-testid="collapsedControl"]{display:flex!important}
+#MainMenu,footer,header{visibility:hidden}
 .stApp{background:linear-gradient(135deg,#0f0c29,#302b63,#24243e)}
 [data-testid="stSidebar"]{background:rgba(255,255,255,.05)!important;border-right:1px solid rgba(255,255,255,.1)!important}
 .stButton button{background:linear-gradient(135deg,#667eea,#764ba2)!important;color:#fff!important;border:none!important;border-radius:10px!important;font-weight:600!important;width:100%!important}
