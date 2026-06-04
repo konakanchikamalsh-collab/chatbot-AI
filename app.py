@@ -7,24 +7,25 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 import docx, openpyxl
 
-st.set_page_config(page_title="AI Assistant", page_icon="🤖", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="AI Assistant", page_icon="🤖", layout="centered", initial_sidebar_state="collapsed")
+
 g = Groq(api_key=st.secrets["GROQ_API_KEY"])
 tv = TavilyClient(api_key=st.secrets["TAVILY_API_KEY"])
 
 st.markdown("""<style>
-#MainMenu,footer{visibility:hidden}
-.stApp{background:linear-gradient(135deg,#0f0c29,#302b63,#24243e)}
-[data-testid="stSidebar"]{background:rgba(255,255,255,.05)!important;border-right:1px solid rgba(255,255,255,.1)!important;min-width:300px!important;transform:none!important}
+#MainMenu,footer,header{visibility:hidden}
+[data-testid="stSidebar"]{display:none!important}
+[data-testid="collapsedControl"]{display:none!important}
 [data-testid="stSidebarCollapsedControl"]{display:none!important}
-section[data-testid="stSidebar"]{display:block!important;left:0!important}
+.stApp{background:linear-gradient(135deg,#0f0c29,#302b63,#24243e)}
 .stButton button{background:linear-gradient(135deg,#667eea,#764ba2)!important;color:#fff!important;border:none!important;border-radius:10px!important;font-weight:600!important;width:100%!important}
 [data-testid="stFileUploader"]{background:rgba(255,255,255,.05)!important;border:2px dashed rgba(255,255,255,.3)!important;border-radius:10px!important}
 [data-testid="stFileUploader"] *{color:#fff!important;background:transparent!important}
 [data-testid="stFileUploaderDropzone"]{background:rgba(255,255,255,.05)!important}
 [data-testid="stFileUploaderDropzone"] button{background:rgba(102,126,234,.3)!important;color:#fff!important;border:1px solid rgba(102,126,234,.5)!important;border-radius:8px!important}
-.mc{background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.1);border-radius:12px;padding:.9rem;text-align:center;margin-bottom:6px}
-.mc.on{background:linear-gradient(135deg,rgba(102,126,234,.35),rgba(118,75,162,.35));border-color:#667eea;box-shadow:0 0 16px rgba(102,126,234,.25)}
-.ft{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:.25rem .6rem;font-size:.75rem;margin:.15rem}
+.mc{background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.1);border-radius:12px;padding:1rem;text-align:center}
+.mc.on{background:linear-gradient(135deg,rgba(102,126,234,.4),rgba(118,75,162,.4));border-color:#667eea;box-shadow:0 0 16px rgba(102,126,234,.25)}
+.ft{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:.2rem .5rem;font-size:.75rem;margin:.1rem}
 h1,h2,h3,p,span,label,div{color:#fff!important}
 hr{border-color:rgba(255,255,255,.1)!important}
 </style>""", unsafe_allow_html=True)
@@ -84,60 +85,55 @@ def ingest(f):
         ss.doc = ""
     ss.ready = True
     ss.fname = f.name
-    st.success(f"loaded {n} words"); st.rerun()
+    st.success(f"✅ {n} words loaded")
+    st.rerun()
 
-with st.sidebar:
-    st.markdown("<div style='text-align:center;padding:.8rem 0'><div style='font-size:1.8rem'>🤖</div><h2 style='background:linear-gradient(90deg,#a78bfa,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:1.1rem;margin:.2rem 0'>AI Assistant</h2></div>", unsafe_allow_html=True)
-    st.markdown("---")
-    st.markdown("**Mode**")
+# header
+st.markdown("<div style='text-align:center;padding:1.5rem 0 1rem'><div style='font-size:2.5rem'>🤖</div><h1 style='background:linear-gradient(90deg,#a78bfa,#60a5fa,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:2rem;font-weight:800;margin:0.3rem 0'>AI Assistant</h1><p style='color:rgba(255,255,255,.4);font-size:.9rem;margin:0'>Chat with docs or search the web</p></div>", unsafe_allow_html=True)
 
-    doc_on = "on" if ss.mode == "doc" else ""
-    web_on = "on" if ss.mode == "web" else ""
+# mode selector
+c1, c2 = st.columns(2)
+with c1:
+    on = "on" if ss.mode=="doc" else ""
+    st.markdown(f'<div class="mc {on}"><div style="font-size:1.8rem">📄</div><div style="font-weight:700;margin:.3rem 0">Document</div><div style="font-size:.72rem;opacity:.5">PDF · Word · Excel · TXT</div></div>', unsafe_allow_html=True)
+    if st.button("📄 Select", key="d", use_container_width=True):
+        ss.mode="doc"; st.rerun()
+with c2:
+    on = "on" if ss.mode=="web" else ""
+    st.markdown(f'<div class="mc {on}"><div style="font-size:1.8rem">🌐</div><div style="font-weight:700;margin:.3rem 0">Internet</div><div style="font-size:.72rem;opacity:.5">Live web search</div></div>', unsafe_allow_html=True)
+    if st.button("🌐 Select", key="w", use_container_width=True):
+        ss.mode="web"; st.rerun()
 
-    st.markdown(f'<div class="mc {doc_on}"><div style="font-size:1.4rem">📄</div><div style="font-weight:700;font-size:.85rem">Document</div><div style="font-size:.65rem;opacity:.5">PDF · Word · Excel · TXT</div></div>', unsafe_allow_html=True)
-    if st.button("Switch to Document", key="doc_btn", use_container_width=True):
-        ss.mode = "doc"; st.rerun()
-
-    st.markdown(f'<div class="mc {web_on}"><div style="font-size:1.4rem">🌐</div><div style="font-weight:700;font-size:.85rem">Internet</div><div style="font-size:.65rem;opacity:.5">Live web search</div></div>', unsafe_allow_html=True)
-    if st.button("Switch to Internet", key="web_btn", use_container_width=True):
-        ss.mode = "web"; st.rerun()
-
-    st.markdown("---")
-
-    if ss.mode == "doc":
-        if not ss.ready:
-            st.markdown('<span class="ft">📄 PDF</span><span class="ft">📝 Word</span><span class="ft">📊 Excel</span><span class="ft">📃 TXT</span>', unsafe_allow_html=True)
-            st.markdown("")
-            f = st.file_uploader("", type=["pdf","docx","xlsx","txt"], label_visibility="collapsed")
-            if st.button("🚀 Process Document", use_container_width=True):
-                if not f: st.error("upload a file first")
-                else:
-                    with st.spinner("reading..."): ingest(f)
-        else:
-            st.markdown(f'<div style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);border-radius:8px;padding:.6rem"><span style="color:#34d399">●</span> <b>{ss.fname}</b></div>', unsafe_allow_html=True)
-            st.markdown("")
-            if st.button("Change File", use_container_width=True):
-                ss.ready=False; ss.doc=""; ss.vs=None; ss.msgs=[]; st.rerun()
-    else:
-        st.markdown('<div style="background:rgba(102,126,234,.1);border:1px solid rgba(102,126,234,.3);border-radius:10px;padding:.8rem;text-align:center"><div style="font-size:1.2rem">🌐</div><b>Web Search On</b><br><span style="font-size:.75rem;opacity:.6">Ask me anything</span></div>', unsafe_allow_html=True)
-
-    st.markdown("---")
-    if st.button("🗑️ Clear Chat", use_container_width=True):
-        ss.msgs=[]; st.rerun()
-
-st.markdown("<h1 style='background:linear-gradient(90deg,#a78bfa,#60a5fa,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:1.8rem;font-weight:800;margin:0'>🤖 AI Assistant</h1><p style='color:rgba(255,255,255,.4);font-size:.85rem;margin:.2rem 0 0'>Chat with docs or search the web</p>", unsafe_allow_html=True)
 st.markdown("---")
 
+# doc upload or web status
 if ss.mode == "doc":
-    if ss.ready:
-        st.markdown(f'<div style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);border-radius:8px;padding:.5rem 1rem;margin-bottom:.5rem"><span style="color:#34d399">●</span> Chatting with <b>{ss.fname}</b></div>', unsafe_allow_html=True)
+    if not ss.ready:
+        st.markdown('<div style="margin-bottom:.5rem"><span class="ft">📄 PDF</span><span class="ft">📝 Word</span><span class="ft">📊 Excel</span><span class="ft">📃 TXT</span></div>', unsafe_allow_html=True)
+        f = st.file_uploader("", type=["pdf","docx","xlsx","txt"], label_visibility="collapsed")
+        if st.button("🚀 Process Document", use_container_width=True):
+            if not f: st.error("upload a file first")
+            else:
+                with st.spinner("reading..."): ingest(f)
     else:
-        st.info("👈 Upload a document from the sidebar to start")
+        c1, c2 = st.columns([4,1])
+        with c1:
+            st.markdown(f'<div style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);border-radius:8px;padding:.6rem 1rem"><span style="color:#34d399">●</span> <b>{ss.fname}</b></div>', unsafe_allow_html=True)
+        with c2:
+            if st.button("Change", use_container_width=True):
+                ss.ready=False; ss.doc=""; ss.vs=None; ss.msgs=[]; st.rerun()
 else:
-    st.markdown('<div style="background:rgba(102,126,234,.1);border:1px solid rgba(102,126,234,.3);border-radius:8px;padding:.5rem 1rem;margin-bottom:.5rem;text-align:center">🌐 <b>Web Search</b> — ask me anything</div>', unsafe_allow_html=True)
+    st.markdown('<div style="background:rgba(102,126,234,.1);border:1px solid rgba(102,126,234,.3);border-radius:8px;padding:.6rem 1rem;text-align:center">🌐 <b>Web Search Active</b> — ask me anything</div>', unsafe_allow_html=True)
 
+st.markdown("---")
+
+# chat
 for m in ss.msgs:
     with st.chat_message(m["role"]): st.write(m["content"])
+
+if ss.msgs:
+    if st.button("🗑️ Clear Chat", use_container_width=True):
+        ss.msgs=[]; st.rerun()
 
 tip = "Ask about your document..." if ss.mode=="doc" else "What do you want to know?"
 if p := st.chat_input(tip):
