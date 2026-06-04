@@ -168,4 +168,25 @@ else:
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 docs = st.session_state.vectorstore.similarity_search(prompt, k=3)
-                context = "\n\n".join([
+                context = "\n\n".join([doc.page_content for doc in docs])
+                response = client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=[
+                        {"role": "system", "content": f"""You are a helpful and friendly AI assistant.
+Answer questions based on this document content:
+
+{context}
+
+Follow these rules when answering:
+- Start with a short human friendly paragraph explaining the answer
+- Then provide key points in bullet format using emojis
+- Keep language simple and conversational
+- Never sound robotic or generic
+- If asked for introduction or summary give full context first then bullets
+- End with a helpful follow up suggestion if relevant"""},
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+                answer = response.choices[0].message.content
+                st.write(answer)
+                st.session_state.chat_history.append({"role": "assistant", "content": answer})
