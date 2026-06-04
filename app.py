@@ -7,14 +7,16 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 import docx, openpyxl
 
-st.set_page_config(page_title="AI Assistant", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="AI Assistant", page_icon="🤖", layout="wide", initial_sidebar_state="expanded")
 g = Groq(api_key=st.secrets["GROQ_API_KEY"])
 tv = TavilyClient(api_key=st.secrets["TAVILY_API_KEY"])
 
 st.markdown("""<style>
-#MainMenu,footer,header{visibility:hidden}
+#MainMenu,footer{visibility:hidden}
 .stApp{background:linear-gradient(135deg,#0f0c29,#302b63,#24243e)}
-[data-testid="stSidebar"]{background:rgba(255,255,255,.05)!important;border-right:1px solid rgba(255,255,255,.1)!important}
+[data-testid="stSidebar"]{background:rgba(255,255,255,.05)!important;border-right:1px solid rgba(255,255,255,.1)!important;min-width:300px!important;transform:none!important}
+[data-testid="stSidebarCollapsedControl"]{display:none!important}
+section[data-testid="stSidebar"]{display:block!important;left:0!important}
 .stButton button{background:linear-gradient(135deg,#667eea,#764ba2)!important;color:#fff!important;border:none!important;border-radius:10px!important;font-weight:600!important;width:100%!important}
 [data-testid="stFileUploader"]{background:rgba(255,255,255,.05)!important;border:2px dashed rgba(255,255,255,.3)!important;border-radius:10px!important}
 [data-testid="stFileUploader"] *{color:#fff!important;background:transparent!important}
@@ -84,13 +86,11 @@ def ingest(f):
     ss.fname = f.name
     st.success(f"loaded {n} words"); st.rerun()
 
-# sidebar
 with st.sidebar:
     st.markdown("<div style='text-align:center;padding:.8rem 0'><div style='font-size:1.8rem'>🤖</div><h2 style='background:linear-gradient(90deg,#a78bfa,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:1.1rem;margin:.2rem 0'>AI Assistant</h2></div>", unsafe_allow_html=True)
     st.markdown("---")
     st.markdown("**Mode**")
 
-    # mode cards as buttons — full width clean
     doc_on = "on" if ss.mode == "doc" else ""
     web_on = "on" if ss.mode == "web" else ""
 
@@ -125,7 +125,6 @@ with st.sidebar:
     if st.button("🗑️ Clear Chat", use_container_width=True):
         ss.msgs=[]; st.rerun()
 
-# main
 st.markdown("<h1 style='background:linear-gradient(90deg,#a78bfa,#60a5fa,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:1.8rem;font-weight:800;margin:0'>🤖 AI Assistant</h1><p style='color:rgba(255,255,255,.4);font-size:.85rem;margin:.2rem 0 0'>Chat with docs or search the web</p>", unsafe_allow_html=True)
 st.markdown("---")
 
