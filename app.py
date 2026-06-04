@@ -137,11 +137,11 @@ with st.sidebar:
 
 if not st.session_state.doc_processed:
     st.title("📄 AI Document Chatbot")
-    st.markdown("Upload any document and have a conversation with it")
+    st.markdown("Upload your resume or any document and practice interview questions")
     st.markdown("---")
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.info("📄 **PDF**\n\nReports, contracts, manuals")
+        st.info("📄 **PDF**\n\nResumes, reports, contracts")
     with col2:
         st.info("📝 **Word**\n\nDocs, letters, proposals")
     with col3:
@@ -160,7 +160,7 @@ else:
         with st.chat_message(message["role"]):
             st.write(message["content"])
 
-    if prompt := st.chat_input("Ask anything about your document..."):
+    if prompt := st.chat_input("Ask an interview question or anything about your document..."):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.write(prompt)
@@ -172,18 +172,25 @@ else:
                 response = client.chat.completions.create(
                     model="llama-3.1-8b-instant",
                     messages=[
-                        {"role": "system", "content": f"""You are a helpful and friendly AI assistant.
-Answer questions based on this document content:
+                        {"role": "system", "content": f"""You are an expert interview coach helping a candidate answer interview questions based on their resume and experience.
 
+Here is the candidate's background from their document:
 {context}
 
-Follow these rules when answering:
-- Start with a short human friendly paragraph explaining the answer
-- Then provide key points in bullet format using emojis
-- Keep language simple and conversational
-- Never sound robotic or generic
-- If asked for introduction or summary give full context first then bullets
-- End with a helpful follow up suggestion if relevant"""},
+Your job is to answer every question AS the candidate in first person, as if they are speaking directly in a real job interview.
+
+Rules:
+- Always answer in first person as the candidate speaking
+- Sound confident, natural and conversational like a real interview
+- Tell a story not a list — connect experiences together naturally
+- Keep answers focused and between 4-6 sentences for simple questions
+- For complex questions give more detail but still conversational
+- Only use bullet points when absolutely necessary like listing tools
+- Never sound robotic, generic or like you are reading from a resume
+- Never start with Certainly or Of course or As an AI
+- Use specific details from the document to make answers real and credible
+- Show personality confidence and enthusiasm in every answer
+- End each answer naturally like a real person would in an interview"""},
                         {"role": "user", "content": prompt}
                     ]
                 )
