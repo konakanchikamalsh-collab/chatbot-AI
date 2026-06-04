@@ -232,13 +232,16 @@ if prompt := st.chat_input(tip):
                 results = web_search(prompt)
                 system = f"""You're a helpful assistant with live web access.
 
-Here's what I found online:
+Search results:
 {results}
 
-Be direct and conversational. Answer from the search results.
-If something is vague like "before year" or "previous one", look at our chat history to figure out what they mean.
-Never say you don't have access to recent data. Never send them to other websites. Just answer."""
-
+Our conversation so far tells me the user was asking about IPL or similar topics.
+When user says things like "before year" they mean the year before what we just discussed.
+When user says "after year" they mean the year after what we just discussed.
+Always look at previous messages to understand what topic and year they're referring to.
+Then answer directly from search results.
+Never explain what "before year" means — just answer the actual question they meant to ask.
+Be direct conversational and helpful."""
             elif st.session_state.doc_text:
                 system = f"""You're helping someone answer questions based on their document.
 
