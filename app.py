@@ -135,7 +135,7 @@ with st.sidebar:
     with c1:
         active = "active" if st.session_state.mode == "document" else ""
         st.markdown(f'<div class="mode-card {active}"><div style="font-size:1.8rem">📄</div><div style="font-weight:700;font-size:0.9rem">Document</div><div style="font-size:0.72rem;color:rgba(255,255,255,0.5)">Chat with files</div></div>', unsafe_allow_html=True)
-        if st.button("Use", key="d", use_container_width=True):
+        if st.button("Use", key="i", use_container_width=True):
             st.session_state.mode = "document"
             st.rerun()
 
