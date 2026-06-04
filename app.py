@@ -14,7 +14,8 @@ tv = TavilyClient(api_key=st.secrets["TAVILY_API_KEY"])
 st.markdown("""<style>
 #MainMenu,footer,header{visibility:hidden}
 .stApp{background:linear-gradient(135deg,#0f0c29,#302b63,#24243e)}
-[data-testid="stSidebar"]{background:rgba(255,255,255,.05)!important;border-right:1px solid rgba(255,255,255,.1)!important}
+[data-testid="stSidebar"]{background:rgba(255,255,255,.05)!important;border-right:1px solid rgba(255,255,255,.1)!important;display:block!important;visibility:visible!important}
+[data-testid="collapsedControl"]{display:block!important;visibility:visible!important;color:white!important}
 .stButton button{background:linear-gradient(135deg,#667eea,#764ba2)!important;color:#fff!important;border:none!important;border-radius:10px!important;font-weight:600!important;width:100%!important}
 [data-testid="stFileUploader"]{background:rgba(255,255,255,.05)!important;border:2px dashed rgba(255,255,255,.3)!important;border-radius:10px!important}
 [data-testid="stFileUploader"] *{color:#fff!important;background:transparent!important}
