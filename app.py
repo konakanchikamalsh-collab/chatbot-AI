@@ -97,7 +97,7 @@ def read_file(f):
 
 def web_search(q):
     try:
-       res = tavily_client.search(query=q, max_results=5, search_depth="advanced")
+        res = tavily_client.search(query=q, max_results=5, search_depth="advanced")
         out = ""
         for r in res.get("results", []):
             out += f"Title: {r.get('title','')}\n{r.get('content','')}\nURL: {r.get('url','')}\n\n"
@@ -108,7 +108,7 @@ def web_search(q):
 def history():
     return [{"role": m["role"], "content": m["content"]} for m in st.session_state.chat_history[-10:]]
 
-def ask_groq(system, extra_context=""):
+def ask_groq(system):
     msgs = [{"role": "system", "content": system}] + history()
     return groq_client.chat.completions.create(
         model="llama-3.1-8b-instant",
@@ -135,14 +135,14 @@ with st.sidebar:
     with c1:
         active = "active" if st.session_state.mode == "document" else ""
         st.markdown(f'<div class="mode-card {active}"><div style="font-size:1.8rem">📄</div><div style="font-weight:700;font-size:0.9rem">Document</div><div style="font-size:0.72rem;color:rgba(255,255,255,0.5)">Chat with files</div></div>', unsafe_allow_html=True)
-        if st.button("Use", key="i", use_container_width=True):
+        if st.button("Click", key="doc_btn", use_container_width=True):
             st.session_state.mode = "document"
             st.rerun()
 
     with c2:
         active = "active" if st.session_state.mode == "internet" else ""
         st.markdown(f'<div class="mode-card {active}"><div style="font-size:1.8rem">🌐</div><div style="font-weight:700;font-size:0.9rem">Internet</div><div style="font-size:0.72rem;color:rgba(255,255,255,0.5)">Search the web</div></div>', unsafe_allow_html=True)
-        if st.button("Use", key="i", use_container_width=True):
+        if st.button("Click", key="web_btn", use_container_width=True):
             st.session_state.mode = "internet"
             st.rerun()
 
@@ -227,7 +227,6 @@ if prompt := st.chat_input(tip):
 
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
-
             if st.session_state.mode == "internet":
                 results = web_search(prompt)
                 system = f"""You're a helpful assistant with live web access.
@@ -235,31 +234,27 @@ if prompt := st.chat_input(tip):
 Search results:
 {results}
 
-Our conversation so far tells me the user was asking about IPL or similar topics.
-When user says things like "before year" they mean the year before what we just discussed.
-When user says "after year" they mean the year after what we just discussed.
-Always look at previous messages to understand what topic and year they're referring to.
-Then answer directly from search results.
-Never explain what "before year" means — just answer the actual question they meant to ask.
-Be direct conversational and helpful."""
+When user says things like "before year" or "after year" look at previous messages to understand what topic and year they mean then answer that.
+Answer directly from search results. Never mention knowledge cutoff. Never send users to other websites.
+Be natural and conversational."""
+
             elif st.session_state.doc_text:
                 system = f"""You're helping someone answer questions based on their document.
 
-Document content:
+Document:
 {st.session_state.doc_text}
 
-Speak in first person, naturally and confidently like you're in a real conversation.
-Pull specific details from the document. Don't list things robotically — talk like a human would."""
+Speak in first person naturally and confidently. Pull specific details from the document. Talk like a human not a robot."""
 
             elif st.session_state.vectorstore:
                 docs = st.session_state.vectorstore.similarity_search(prompt, k=6)
                 context = "\n\n".join([d.page_content for d in docs])
                 system = f"""You're helping answer questions from a document.
 
-Relevant content:
+Content:
 {context}
 
-Be natural and conversational. Use what's in the document to give a real answer."""
+Be natural and conversational. Use the document to give real answers."""
 
             else:
                 system = "You're a helpful assistant. Be friendly and conversational. Remember what we talked about."
