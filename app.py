@@ -19,14 +19,25 @@ st.markdown("""
     .stApp { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); }
     [data-testid="stSidebar"] { display: none !important; }
 
+    /* Sticky top bar */
+    .sticky-top {
+        position: sticky;
+        top: 0;
+        z-index: 999;
+        background: linear-gradient(135deg, #0f0c29, #302b63);
+        padding: 0.8rem 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        margin-bottom: 1rem;
+    }
+
     .stButton button {
         background: linear-gradient(135deg, #667eea, #764ba2) !important;
         color: white !important;
         border: none !important;
         border-radius: 12px !important;
         font-weight: 600 !important;
-        padding: 0.7rem 1rem !important;
-        font-size: 1rem !important;
+        padding: 0.6rem 1rem !important;
+        font-size: 0.9rem !important;
         width: 100% !important;
     }
 
@@ -47,25 +58,30 @@ st.markdown("""
     .mode-btn {
         background: rgba(255,255,255,0.05);
         border: 2px solid rgba(255,255,255,0.15);
-        border-radius: 16px;
-        padding: 1.2rem;
+        border-radius: 14px;
+        padding: 0.8rem;
         text-align: center;
-        cursor: pointer;
-        transition: all 0.3s;
     }
     .mode-btn.active {
         background: linear-gradient(135deg, rgba(102,126,234,0.4), rgba(118,75,162,0.4));
         border-color: #667eea;
-        box-shadow: 0 0 20px rgba(102,126,234,0.3);
+        box-shadow: 0 0 15px rgba(102,126,234,0.3);
     }
 
-    .card {
+    .filetype-card {
         background: rgba(255,255,255,0.05);
         border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 12px;
-        padding: 1rem;
+        border-radius: 10px;
+        padding: 0.6rem;
         text-align: center;
         margin-bottom: 0.5rem;
+    }
+
+    .clear-btn button {
+        background: rgba(239,68,68,0.2) !important;
+        border: 1px solid rgba(239,68,68,0.4) !important;
+        color: white !important;
+        border-radius: 10px !important;
     }
 
     [data-testid="stChatMessage"] {
@@ -76,14 +92,9 @@ st.markdown("""
     h1, h2, h3, p, span, label, div { color: white !important; }
     hr { border-color: rgba(255,255,255,0.1) !important; }
 
-    /* Responsive */
     @media (max-width: 480px) {
-        h1 { font-size: 1.4rem !important; }
-        .mode-btn { padding: 0.8rem !important; }
-        [data-testid="stChatMessage"] { font-size: 0.88rem !important; }
-    }
-    @media (min-width: 481px) and (max-width: 1024px) {
-        h1 { font-size: 1.8rem !important; }
+        h1 { font-size: 1.3rem !important; }
+        .mode-btn { padding: 0.6rem !important; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -145,66 +156,58 @@ for key, val in {
     "vectorstore": None,
     "doc_processed": False,
     "doc_name": "",
-    "mode": "document",
-    "show_upload": True
+    "mode": "document"
 }.items():
     if key not in st.session_state:
         st.session_state[key] = val
 
-# ── Header ────────────────────────────────────────────────────
+# ── Sticky Header ─────────────────────────────────────────────
+st.markdown('<div class="sticky-top">', unsafe_allow_html=True)
+
 st.markdown("""
-<div style="text-align:center;padding:1.5rem 0 1rem 0">
-    <div style="font-size:2.5rem">🤖</div>
-    <h1 style="font-size:1.8rem;font-weight:800;background:linear-gradient(90deg,#a78bfa,#60a5fa,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:0.3rem 0">AI Assistant</h1>
-    <p style="color:rgba(255,255,255,0.5);font-size:0.9rem;margin:0">Chat with documents or search the web</p>
+<div style="text-align:center;padding:0.3rem 0 0.8rem 0">
+    <h1 style="font-size:1.6rem;font-weight:800;background:linear-gradient(90deg,#a78bfa,#60a5fa,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:0">🤖 AI Assistant</h1>
 </div>
 """, unsafe_allow_html=True)
 
-# ── Mode selector ─────────────────────────────────────────────
-c1, c2 = st.columns(2)
+# Mode selector in sticky header
+c1, c2, c3 = st.columns([2, 2, 1])
 with c1:
     active = "active" if st.session_state.mode == "document" else ""
-    st.markdown(f"""
-    <div class="mode-btn {active}">
-        <div style="font-size:1.8rem">📄</div>
-        <div style="font-weight:700;font-size:0.95rem;margin:0.3rem 0">Document</div>
-        <div style="font-size:0.72rem;color:rgba(255,255,255,0.5)">Chat with your files</div>
-    </div>
-    """, unsafe_allow_html=True)
-    if st.button("Select Document", key="doc_mode", use_container_width=True):
+    st.markdown(f'<div class="mode-btn {active}"><span style="font-size:1.2rem">📄</span> <strong>Document</strong></div>', unsafe_allow_html=True)
+    if st.button("Select", key="doc_mode", use_container_width=True):
         st.session_state.mode = "document"
-        st.session_state.show_upload = True
         st.rerun()
 
 with c2:
     active = "active" if st.session_state.mode == "internet" else ""
-    st.markdown(f"""
-    <div class="mode-btn {active}">
-        <div style="font-size:1.8rem">🌐</div>
-        <div style="font-weight:700;font-size:0.95rem;margin:0.3rem 0">Internet</div>
-        <div style="font-size:0.72rem;color:rgba(255,255,255,0.5)">Search the web</div>
-    </div>
-    """, unsafe_allow_html=True)
-    if st.button("Select Internet", key="web_mode", use_container_width=True):
+    st.markdown(f'<div class="mode-btn {active}"><span style="font-size:1.2rem">🌐</span> <strong>Internet</strong></div>', unsafe_allow_html=True)
+    if st.button("Select", key="web_mode", use_container_width=True):
         st.session_state.mode = "internet"
-        st.session_state.show_upload = False
         st.rerun()
 
+with c3:
+    st.markdown('<div style="padding-top:0.5rem"></div>', unsafe_allow_html=True)
+    if st.session_state.chat_history:
+        st.markdown('<div class="clear-btn">', unsafe_allow_html=True)
+        if st.button("🗑️ Clear", use_container_width=True):
+            st.session_state.chat_history = []
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
 st.markdown("---")
 
-# ── Document upload section ───────────────────────────────────
+# ── Document upload ───────────────────────────────────────────
 if st.session_state.mode == "document":
     if not st.session_state.doc_processed:
-        st.markdown("### 📎 Upload Your Document")
+        st.markdown("#### 📎 Upload Your Document")
         f = st.file_uploader("", type=["pdf", "docx", "xlsx", "txt"], label_visibility="collapsed")
 
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown('<div class="card"><div style="font-size:1.3rem">📄</div><div style="font-size:0.8rem">PDF</div></div>', unsafe_allow_html=True)
-            st.markdown('<div class="card"><div style="font-size:1.3rem">📝</div><div style="font-size:0.8rem">Word</div></div>', unsafe_allow_html=True)
-        with c2:
-            st.markdown('<div class="card"><div style="font-size:1.3rem">📊</div><div style="font-size:0.8rem">Excel</div></div>', unsafe_allow_html=True)
-            st.markdown('<div class="card"><div style="font-size:1.3rem">📃</div><div style="font-size:0.8rem">Text</div></div>', unsafe_allow_html=True)
+        c1, c2, c3, c4 = st.columns(4)
+        for col, icon, label in zip([c1,c2,c3,c4], ["📄","📝","📊","📃"], ["PDF","Word","Excel","Text"]):
+            with col:
+                st.markdown(f'<div class="filetype-card"><div style="font-size:1.2rem">{icon}</div><div style="font-size:0.75rem">{label}</div></div>', unsafe_allow_html=True)
 
         if st.button("🚀 Process Document", use_container_width=True):
             if not f:
@@ -213,7 +216,7 @@ if st.session_state.mode == "document":
                 with st.spinner("Reading your document..."):
                     raw = read_file(f)
                     if not raw.strip():
-                        st.error("Couldn't read this file. Try another.")
+                        st.error("Couldn't read this file.")
                     else:
                         words = len(raw.split())
                         if words <= 4000:
@@ -246,27 +249,19 @@ if st.session_state.mode == "document":
 
 else:
     st.markdown("""
-    <div style="background:rgba(102,126,234,0.1);border:1px solid rgba(102,126,234,0.3);border-radius:12px;padding:1rem;text-align:center">
-        <div style="font-size:1.5rem">🌐</div>
-        <div style="font-weight:600;margin:0.3rem 0">Web Search Active</div>
-        <div style="font-size:0.8rem;color:rgba(255,255,255,0.5)">Ask me anything — I'll find real time answers</div>
+    <div style="background:rgba(102,126,234,0.1);border:1px solid rgba(102,126,234,0.3);border-radius:12px;padding:0.8rem;text-align:center">
+        <span style="font-size:1.2rem">🌐</span> <strong>Web Search Active</strong>
+        <div style="font-size:0.8rem;color:rgba(255,255,255,0.5);margin-top:0.2rem">Ask me anything — I'll find real time answers</div>
     </div>
     """, unsafe_allow_html=True)
 
 st.markdown("---")
 
-# ── Chat history ──────────────────────────────────────────────
+# ── Chat ──────────────────────────────────────────────────────
 for msg in st.session_state.chat_history:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# ── Clear chat button ─────────────────────────────────────────
-if st.session_state.chat_history:
-    if st.button("🗑️ Clear Chat", use_container_width=True):
-        st.session_state.chat_history = []
-        st.rerun()
-
-# ── Chat input ────────────────────────────────────────────────
 tip = "Ask about your document..." if st.session_state.mode == "document" else "What do you want to know?"
 
 if prompt := st.chat_input(tip):
