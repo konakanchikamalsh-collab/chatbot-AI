@@ -7,7 +7,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 import docx, openpyxl
 
-st.set_page_config(page_title="AI Assistant", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="AI Assistant", page_icon="🤖", layout="wide", initial_sidebar_state="expanded")
 g = Groq(api_key=st.secrets["GROQ_API_KEY"])
 tv = TavilyClient(api_key=st.secrets["TAVILY_API_KEY"])
 
