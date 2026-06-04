@@ -97,7 +97,7 @@ def read_file(f):
 
 def web_search(q):
     try:
-        res = tavily_client.search(query=q, max_results=5)
+       res = tavily_client.search(query=q, max_results=5, search_depth="advanced")
         out = ""
         for r in res.get("results", []):
             out += f"Title: {r.get('title','')}\n{r.get('content','')}\nURL: {r.get('url','')}\n\n"
